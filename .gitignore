@@ -1,0 +1,18 @@
+# secrets - never commit
+config/checkin_env.bat
+config/trae-accounts/*.json
+scripts/workbuddy-checkin/auths/*.json
+!scripts/workbuddy-checkin/auths/auth.example.json
+scripts/.checkin_state.json
+scripts/Trae-AutoCheckin/.trae_checkin_state.json
+scripts/Trae-AutoCheckin/.trae_device_ids.json
+
+# runtime
+logs/
+__pycache__/
+*.pyc
+scripts/Qoder-Checkin/accounts.json
+scripts/Qoder-Checkin/config.json
+scripts/Qoder-Checkin/.qoder_token_cache.json
+dist/
+先读README.md*

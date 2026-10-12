@@ -1,0 +1,21 @@
+{
+  "device": {
+    "clientType": "10",
+    "machineOS": "",
+    "machineHostname": "",
+    "machineId": "",
+    "machineToken": "",
+    "machineCode": "",
+    "machineType": "",
+    "version": ""
+  },
+  "notify": {
+    "qywxToken": "",
+    "plusplusToken": "",
+    "webhook": ""
+  },
+  "baseUrls": [
+    "https://openapi.qoder.com.cn"
+  ],
+  "refreshMarginH": 72
+}
