@@ -52,16 +52,28 @@ def title(txt):
     hr("═")
 
 
+class Back(Exception):
+    """用户键入 9 —— 中止当前流程，返回上一级。"""
+
+
 def ask(prompt, default="", allow_empty=False):
     while True:
         s = input("%s%s: " % (prompt,
                               (" [回车=%s]" % default) if default else "")).strip()
+        if s == "9":
+            raise Back()
         if s:
             return s
         if default:
             return default
         if allow_empty:
             return ""
+
+
+def enter_or_back(prompt):
+    """等待回车继续；键入 9 则返回上一级。"""
+    if input("%s（输 9 返回）..." % prompt).strip() == "9":
+        raise Back()
 
 
 def confirm(prompt, default=False):
@@ -163,7 +175,7 @@ def setup_push():
     """交互式绑定企业微信 / PushPlus，当场试发验证。"""
     title("步骤 · 绑定推送渠道")
     print("支持两种渠道：企业微信消息推送(群机器人)（推荐）/ PushPlus")
-    ch = ask("选 1=企业微信  2=PushPlus  0=跳过", default="1")
+    ch = ask("选 1=企业微信  2=PushPlus  0=跳过  9=返回", default="1")
     if ch == "0":
         print("已跳过。之后可在菜单「绑定推送」里随时配置。")
         return False
@@ -236,7 +248,7 @@ def add_workbuddy():
     title("添加 WorkBuddy 账号")
     print("流程：脚本打印授权链接 → 你在浏览器无痕窗口登录 → 凭证自动落盘")
     print("⚠️  务必用无痕窗口，且每个账号跑一次本流程\n")
-    input("回车开始，将打开授权流程（登录页面跳 127.0.0.1 报错属正常）...")
+    enter_or_back("回车开始，将打开授权流程（登录页面跳 127.0.0.1 报错属正常）")
     run_py(["login_quick.py"], cwd=WB_DIR, capture=False)
     print("\n当前 WorkBuddy 账号数：%d" % wb_count())
 
@@ -245,7 +257,7 @@ def add_trae():
     title("添加 Trae 账号")
     print("前提：Trae 客户端已登录目标账号（本工具会自动识别客户端登录态）")
     print("多账号：客户端切换登录后，再跑一次本项\n")
-    input("回车开始归档...")
+    enter_or_back("回车开始归档")
     run_py(["trae_accounts_update.py"], cwd=SCRIPTS, capture=False)
     n, _ = trae_count()
     print("当前 Trae 配置账号数：%d" % n)
@@ -255,7 +267,7 @@ def add_qoder():
     title("添加 Qoder 账号")
     print("前提：本机装了 Qoder 客户端且已登录")
     print("多账号：客户端切换登录后，再跑一次本项\n")
-    input("回车开始提取...")
+    enter_or_back("回车开始提取")
     run_py(["01_extract.py"], cwd=QODER_DIR, capture=False)
     _, nq = trae_count()
     print("当前 Qoder 账号数：%d" % nq)
@@ -266,7 +278,7 @@ def add_accounts_wizard():
     nwb, nt, nq = account_summary()
     print("当前已有：WorkBuddy %d 个 · Trae %d 个 · Qoder %d 个" % (nwb, nt, nq))
     print("哪几个平台要加号？（加号流程需要你在浏览器/客户端配合）")
-    want = ask("输入组合，如 1,3=WorkBuddy+Qoder；直接回车=跳过", allow_empty=True)
+    want = ask("输入组合，如 1,3=WorkBuddy+Qoder；回车=跳过；9=返回", allow_empty=True)
     want = {x.strip() for x in want.replace("，", ",").split(",") if x.strip()}
     if "1" in want:
         add_workbuddy()
@@ -322,7 +334,7 @@ def setup_task():
             if re.search("任务名|Task To Run|开始时间|Start Time|上次运行|Last Run|下次运行|Next Run|状态|Status", ln):
                 print("  " + ln.strip())
         print()
-        print("  1 = 修改执行时间    2 = 删除任务    0 = 返回")
+        print("  1 = 修改执行时间    2 = 删除任务    0/9 = 返回")
         ch = ask("选择", default="0")
         if ch == "1":
             hhmm = ask("每天几点执行（HH:MM，如 09:00）")
@@ -380,7 +392,7 @@ def show_logs():
         return
     for i, p in enumerate(files[:5]):
         print("  %d = %s" % (i + 1, os.path.basename(p)))
-    ch = ask("看哪天的？（1-5，回车=最新）", default="1")
+    ch = ask("看哪天的？（1-5，回车=最新，9=返回）", default="1")
     try:
         pick = files[max(0, min(int(ch) - 1, len(files) - 1))]
     except ValueError:
@@ -434,7 +446,7 @@ def wizard():
     hr("═")
     print("  🎯 检测到首次使用 —— 引导向导（约 5 分钟，全程回车+粘贴即可）")
     hr("═")
-    input("\n回车开始...")
+    enter_or_back("\n回车开始")
 
     print("\n【1/5】环境自检")
     problems = doctor_run()
@@ -442,13 +454,22 @@ def wizard():
         print("\n⚠️ 自检发现 %d 个问题（加账号等步骤会解决其中大部分，可继续）" % len(problems))
 
     print("\n【2/5】绑定企业微信推送")
-    setup_push()
+    try:
+        setup_push()
+    except Back:
+        print("↩ 已跳过该步")
 
     print("\n【3/5】添加账号")
-    add_accounts_wizard()
+    try:
+        add_accounts_wizard()
+    except Back:
+        print("↩ 已跳过该步")
 
     print("\n【4/5】配置定时任务")
-    setup_task()
+    try:
+        setup_task()
+    except Back:
+        print("↩ 已跳过该步")
 
     print("\n【5/5】试跑一次")
     nwb, nt, nq = account_summary()
@@ -490,37 +511,41 @@ def menu():
         print(MENU)
         print("  当前：WB %d · Trae %d · Qoder %d ｜推送 %s ｜定时任务 %s"
               % (nwb, nt, nq, push, task))
+        print("  提示：任意子流程中键入 9 = 返回上一级")
         ch = input("\n请选择: ").strip()
-        if ch == "1":
-            doctor_run()
-            pause()
-        elif ch == "2":
-            add_workbuddy()
-            pause()
-        elif ch == "3":
-            add_trae()
-            pause()
-        elif ch == "4":
-            add_qoder()
-            pause()
-        elif ch == "5":
-            setup_push()
-            pause()
-        elif ch == "6":
-            setup_task()
-            pause()
-        elif ch == "7":
-            run_now()
-            pause()
-        elif ch == "8":
-            show_credits()
-        elif ch == "9":
-            show_logs()
-        elif ch == "0":
-            print("Bye.")
-            return
-        else:
-            print("无效选择")
+        try:
+            if ch == "1":
+                doctor_run()
+                pause()
+            elif ch == "2":
+                add_workbuddy()
+                pause()
+            elif ch == "3":
+                add_trae()
+                pause()
+            elif ch == "4":
+                add_qoder()
+                pause()
+            elif ch == "5":
+                setup_push()
+                pause()
+            elif ch == "6":
+                setup_task()
+                pause()
+            elif ch == "7":
+                run_now()
+                pause()
+            elif ch == "8":
+                show_credits()
+            elif ch == "9":
+                show_logs()
+            elif ch == "0":
+                print("Bye.")
+                return
+            else:
+                print("无效选择")
+        except Back:
+            print("↩ 已返回菜单")
 
 
 def main():
@@ -529,7 +554,10 @@ def main():
     print("  签到管家 CheckinButler  ·  %s" % TOOL_DIR)
     hr("═")
     if "--wizard" in sys.argv or not is_initialized():
-        wizard()
+        try:
+            wizard()
+        except Back:
+            print("\n↩ 已退出向导，进入菜单。")
     menu()
 
 
